@@ -37,3 +37,21 @@ test('disposed queue can be activated for React strict effect replay', async () 
   assert.equal(await q.change('ignored'), false); q.activate();
   assert.equal(await q.change('loaded'), true);
 });
+
+test('a rejected stale load cannot report an error over the newer source', async () => {
+  const blocked = deferred();
+  const q = new SourceQueue(async source => { if (source === 'old') { await blocked.promise; throw new Error('old failed'); } });
+  const old = q.change('old'); await Promise.resolve();
+  const next = q.change('new'); blocked.resolve();
+  assert.equal(await old, false); assert.equal(await next, true);
+});
+
+test('only the latest episode handoff may navigate', async () => {
+  const blocked = deferred(); let navigations = 0;
+  const q = new SourceQueue(async () => { await blocked.promise; });
+  const first = q.change(null).then(current => { if (current) navigations++; });
+  await Promise.resolve();
+  const second = q.change(null).then(current => { if (current) navigations++; });
+  blocked.resolve(); await Promise.all([first, second]);
+  assert.equal(navigations, 1);
+});
