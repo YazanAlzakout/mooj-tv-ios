@@ -33,6 +33,11 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+      # Expo 57's Swift package requires Swift 6.2; macos-15 defaults to Xcode 16.4.
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - run: xcodebuild -version && swift --version
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -44,7 +49,7 @@ jobs:
           set -euo pipefail
           WORKSPACE=$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
-          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO > xcodebuild.log 2>&1
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO > xcodebuild.log 2>&1 || { tail -100 xcodebuild.log; exit 1; }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
