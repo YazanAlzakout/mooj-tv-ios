@@ -9,6 +9,8 @@ import { getAllSeries } from "@/providers/xtream/seriesAdapter";
  * vodStore.ts. Cleared automatically by activeSessionStore whenever the
  * active session changes or is cleared.
  */
+// Invalidates delayed requests when the account or catalog changes.
+let revision = 0;
 let series: SeriesSummary[] | null = null;
 
 export function getSeriesList(): SeriesSummary[] | null {
@@ -32,6 +34,7 @@ export function getSeriesList(): SeriesSummary[] | null {
 
 /** Seeds the store from the on-device catalog, so Series opens with no network call. */
 export function setSeriesList(next: SeriesSummary[]): void {
+  revision++;
   series = next;
 }
 
@@ -48,11 +51,14 @@ export async function loadSeriesList(
    * network — the refresh did nothing, every time.
    */
   if (series && !options.forceRefresh) return series;
+  const requestRevision = ++revision;
   const fetched = await getAllSeries(config);
+  if (requestRevision !== revision) throw new Error("Catalog request superseded");
   series = fetched;
   return fetched;
 }
 
 export function clearSeriesList(): void {
+  revision++;
   series = null;
 }

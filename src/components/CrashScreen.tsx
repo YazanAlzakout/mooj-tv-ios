@@ -3,6 +3,7 @@ import { getLocales } from "expo-localization";
 
 import type { ErrorBoundaryProps } from "expo-router";
 
+import { redactDiagnosticText } from "@/core/errors/redactDiagnosticText";
 import { Focusable } from "@/components/Focusable";
 import { isTvBuild } from "@/core/platform/isTvBuild";
 import { TVSafeArea } from "@/core/theme/tokens";
@@ -96,7 +97,7 @@ export function CrashScreen({ error, retry }: ErrorBoundaryProps) {
         detail: isTvBuild ? "Technical details — arrow keys to read" : "Technical details — long-press to copy",
       };
 
-  const detail = [error?.name, error?.message, error?.stack].filter(Boolean).join("\n");
+  const detail = redactDiagnosticText([error?.name, error?.message, error?.stack].filter(Boolean).join("\n"));
 
   return (
     <View style={[styles.root, isTvBuild && styles.tvSafe]}>

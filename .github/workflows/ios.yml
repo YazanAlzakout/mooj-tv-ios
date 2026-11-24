@@ -24,7 +24,7 @@ jobs:
       - run: npm run verify:ios
       - run: npm run test:playback
       - run: npm run typecheck
-      - run: npx eslint src/playback/SourceQueue.ts src/playback/useVodSession.ts src/playback/useWatchProgress.ts src/playback/usePlaybackSeek.ts 'src/app/movies/player/[movieId].tsx' 'src/app/series/player/[episodeId].tsx'
+      - run: npm run lint
       - run: npx expo export --platform ios
   simulator:
     if: github.event_name == 'workflow_dispatch' && inputs.simulator

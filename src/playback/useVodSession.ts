@@ -27,6 +27,7 @@ export function useVodSession(source: VideoSource) {
   const background = useRef(AppState.currentState === 'background');
   const savedPosition = useRef(0);
   const savedRate = useRef(1);
+  const savedPlaying = useRef(true);
 
   function showError(error: unknown) {
     if (mounted.current) setErrorReasonKey(vodReasonKey(toPlaybackError(error).category));
@@ -66,6 +67,9 @@ export function useVodSession(source: VideoSource) {
     retried.current = false;
     savedPosition.current = 0;
     savedRate.current = 1;
+    savedPlaying.current = true;
+    // Metadata can arrive while the app is backgrounded; do not reopen video there.
+    if (background.current) return;
     void queue.change(next, () => {
       if (next !== null) player.play();
     }).catch(showError);
@@ -77,6 +81,7 @@ export function useVodSession(source: VideoSource) {
       if (next === 'background') {
         if (backgroundEnabled === true) return;
         background.current = true;
+        savedPlaying.current = player.playing;
         savedPosition.current = player.currentTime;
         savedRate.current = player.playbackRate;
         // Promise queue yields to progress persistence listeners first.
@@ -88,7 +93,7 @@ export function useVodSession(source: VideoSource) {
             player.currentTime = savedPosition.current;
           }
           player.playbackRate = savedRate.current;
-          if (sourceRef.current) player.play();
+          if (sourceRef.current && savedPlaying.current) player.play();
         }).catch(showError);
       }
     });

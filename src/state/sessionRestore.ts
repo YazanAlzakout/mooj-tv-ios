@@ -199,6 +199,8 @@ export async function refreshActiveSessionChannels(): Promise<void> {
   // provider to MPEG-TS on every manual refresh).
   const containerExtension = session.channels[0]?.containerExtension ?? resolveContainerExtension([]);
   const channels = await getAllLiveChannels(session.config, containerExtension);
+  // Do not reconnect an old account after switching or disconnecting.
+  if (getActiveSession() !== session) return;
   setActiveSession({ ...session, channels });
   await writeCatalog(session.provider.id, "live", toStoredChannels(channels));
 }

@@ -1,6 +1,6 @@
 # iPhone usability and reliability review
 
-Status: first static review, not device acceptance. The original repository is unchanged.
+Status: historical first pass, not device acceptance. See [the cumulative Arabic report](COMPREHENSIVE_REVIEW_AR.md) for current fixed/open status; several findings below are now fixed. The original repository is unchanged.
 
 ## Implemented in this pass
 

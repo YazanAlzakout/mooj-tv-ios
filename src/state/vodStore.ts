@@ -12,6 +12,8 @@ import { getAllVodStreams } from "@/providers/xtream/vodAdapter";
  * changes or is cleared — there is no cross-session persistence for this,
  * deliberately.
  */
+// Invalidates delayed requests when the account or catalog changes.
+let revision = 0;
 let movies: MovieSummary[] | null = null;
 
 export function getVodMovies(): MovieSummary[] | null {
@@ -34,6 +36,7 @@ export function getVodMovies(): MovieSummary[] | null {
 
 /** Seeds the store from the on-device catalog, so Movies opens with no network call. */
 export function setVodMovies(next: MovieSummary[]): void {
+  revision++;
   movies = next;
 }
 
@@ -50,11 +53,14 @@ export async function loadVodMovies(
    * network — the refresh did nothing, every time.
    */
   if (movies && !options.forceRefresh) return movies;
+  const requestRevision = ++revision;
   const fetched = await getAllVodStreams(config);
+  if (requestRevision !== revision) throw new Error("Catalog request superseded");
   movies = fetched;
   return fetched;
 }
 
 export function clearVodMovies(): void {
+  revision++;
   movies = null;
 }

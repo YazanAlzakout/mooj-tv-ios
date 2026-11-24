@@ -1,0 +1,30 @@
+Command: npm run test:playback
+
+✔ vodStore: account switch rejects a late old response without changing the new catalog (52.851667ms)
+✔ vodStore: latest refresh wins even when the earlier response arrives last (10.062866ms)
+✔ seriesStore: account switch rejects a late old response without changing the new catalog (8.246863ms)
+✔ seriesStore: latest refresh wins even when the earlier response arrives last (7.503495ms)
+✔ failed refresh retains saved movies and their old freshness timestamp (30.017655ms)
+✔ disk failure does not discard a successful provider response (15.767393ms)
+✔ unresolved image downloads do not hold the catalog loading screen (9.027446ms)
+✔ manual live refresh cannot restore the previous account (16.171961ms)
+✔ manual live refresh cannot undo disconnect (12.934428ms)
+✔ diagnostics remove query and path credentials, including multiple URLs (1.092144ms)
+✔ diagnostics retain non-URL error codes and stack locations (0.198683ms)
+✔ background clear followed by foreground load never overlaps or plays stale source (1.525474ms)
+✔ unmount invalidates pending callbacks and queued native commands (0.27093ms)
+✔ a failed load does not poison retry (0.444516ms)
+✔ disposed queue can be activated for React strict effect replay (0.22958ms)
+✔ a rejected stale load cannot report an error over the newer source (0.327013ms)
+✔ only the latest episode handoff may navigate (0.402845ms)
+✔ paused VOD stays paused after background and foreground, preserving time and speed (78.791127ms)
+✔ playing VOD resumes after a background round trip (17.665056ms)
+✔ a source mounted in background does not open until foreground (9.733388ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 760.748614

@@ -1,3 +1,4 @@
+import { redactDiagnosticText } from "@/core/errors/redactDiagnosticText";
 import { useSyncExternalStore } from "react";
 
 export interface PlayerLifecycleSnapshot {
@@ -101,7 +102,7 @@ class PlayerLifecycleMonitorImpl {
   }
 
   errorOccurred(message: string): void {
-    this.patch({ errors: this.snapshot.errors + 1, lastErrorMessage: message });
+    this.patch({ errors: this.snapshot.errors + 1, lastErrorMessage: redactDiagnosticText(message) });
   }
 
   private patch(partial: Partial<PlayerLifecycleSnapshot>): void {

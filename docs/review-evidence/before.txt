@@ -1,0 +1,23 @@
+Baseline: 567175f
+Command: REVIEW_SOURCE_ROOT=/tmp/mooj-review-before node --experimental-strip-types --test tests/catalog-regressions.test.mjs tests/vod-lifecycle.test.mjs
+
+✖ vodStore: account switch rejects a late old response without changing the new catalog (89.219809ms)
+✖ vodStore: latest refresh wins even when the earlier response arrives last (14.123471ms)
+✖ seriesStore: account switch rejects a late old response without changing the new catalog (10.251895ms)
+✖ seriesStore: latest refresh wins even when the earlier response arrives last (12.090118ms)
+✖ failed refresh retains saved movies and their old freshness timestamp (34.235712ms)
+✖ disk failure does not discard a successful provider response (20.143388ms)
+✖ unresolved image downloads do not hold the catalog loading screen (1002.551081ms)
+✖ manual live refresh cannot restore the previous account (18.033624ms)
+✖ manual live refresh cannot undo disconnect (13.896666ms)
+✖ paused VOD stays paused after background and foreground, preserving time and speed (107.352524ms)
+✔ playing VOD resumes after a background round trip (19.43365ms)
+✖ a source mounted in background does not open until foreground (12.542256ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 1
+ℹ fail 10
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1549.422731

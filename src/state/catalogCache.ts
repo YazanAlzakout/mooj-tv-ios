@@ -97,7 +97,7 @@ export async function readCachedCatalog(
     movieCategories: movieCats?.data ?? [],
     series: series?.data ?? [],
     seriesCategories: seriesCats?.data ?? [],
-    fetchedAt: Math.min(
+    fetchedAt: [live, liveCats, movies, movieCats, series, seriesCats].some(entry => entry === null) ? 0 : Math.min(
       ...[live, liveCats, movies, movieCats, series, seriesCats]
         .filter((entry) => entry !== null)
         .map((entry) => entry.fetchedAt)
@@ -150,8 +150,8 @@ const ARTWORK_BUDGET_PER_SECTION = 60;
  * Sections are fetched **sequentially**, never in parallel: this provider's
  * panel refuses further requests once its rate budget is spent, and the
  * shared request queue (core/network/requestQueue.ts) serialises them
- * anyway. A section that fails is stored as empty rather than aborting the
- * whole preload — a provider with no VOD must still get a working Live TV.
+ * anyway. Failed sections retain their last successful cache. A genuine
+ * successful empty response still means the subscription has no such content.
  */
 export async function preloadCatalog(
   providerId: string,
@@ -160,6 +160,8 @@ export async function preloadCatalog(
   onProgress: (progress: PreloadProgress) => void,
   shouldStop: () => boolean = () => false
 ): Promise<CachedCatalogSnapshot> {
+  let oldestFetch = Date.now();
+
   function report(step: PreloadStep, imagesDone = 0, imagesTotal = 0) {
     onProgress({
       step,
@@ -180,17 +182,24 @@ export async function preloadCatalog(
     kind: CatalogKind,
     fetcher: () => Promise<T>,
     empty: T,
-    toPayload: (data: T) => unknown = (data) => data
+    toPayload: (data: T) => unknown = (data) => data,
+    fromPayload: (data: unknown) => T = (data) => data as T
   ): Promise<T> {
     report(step);
     if (shouldStop()) return empty;
+    let data: T;
     try {
-      const data = await fetcher();
-      await writeCatalog(providerId, kind, toPayload(data));
-      return data;
+      data = await fetcher();
     } catch {
-      return empty;
+      // A failed refresh is not evidence that a subscription is empty.
+      const previous = await readCatalog<unknown>(providerId, kind).catch(() => null);
+      oldestFetch = Math.min(oldestFetch, previous?.fetchedAt ?? 0);
+      return previous ? fromPayload(previous.data) : empty;
     }
+    if (shouldStop()) return empty;
+    // Storage failure must not discard a successful network response.
+    await writeCatalog(providerId, kind, toPayload(data)).catch(() => {});
+    return data;
   }
 
   const liveCategories = await section<CategoryRow[]>(
@@ -205,7 +214,8 @@ export async function preloadCatalog(
     "live",
     () => getAllLiveChannels(config, containerExtension),
     [],
-    (list) => list.map(toStored)
+    (list) => list.map(toStored),
+    (data) => (data as StoredChannel[]).map(stored => fromStored(stored, config))
   );
 
   const movieCategories = await section<CategoryRow[]>(
@@ -231,11 +241,11 @@ export async function preloadCatalog(
   ].filter((url): url is string => Boolean(url));
 
   report("artwork", 0, artwork.length);
-  await warmImageCache(artwork, {
+  // Artwork is optional: a slow image host must not block opening the app.
+  void warmImageCache(artwork, {
     concurrency: 6,
     shouldStop,
-    onProgress: (done, total) => report("artwork", done, total),
-  });
+  }).catch(() => {});
 
   return {
     channels,
@@ -244,7 +254,7 @@ export async function preloadCatalog(
     movieCategories,
     series,
     seriesCategories,
-    fetchedAt: Date.now(),
+    fetchedAt: oldestFetch,
   };
 }
 
