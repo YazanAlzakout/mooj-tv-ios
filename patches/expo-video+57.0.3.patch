@@ -1,0 +1,241 @@
+diff --git a/node_modules/expo-video/android/build.gradle b/node_modules/expo-video/android/build.gradle
+index ebbe5c0..c483416 100644
+--- a/node_modules/expo-video/android/build.gradle
++++ b/node_modules/expo-video/android/build.gradle
+@@ -26,6 +26,13 @@ dependencies {
+   implementation "androidx.media3:media3-ui:${androidxMedia3Version}"
+   implementation "androidx.media3:media3-datasource-okhttp:${androidxMedia3Version}"
+ 
++  // MP2 (MPEG Layer II) audio fallback for Media3, used only when the platform
++  // MediaCodec can't decode a format (see VideoPlayer.kt's
++  // setExtensionRendererMode(EXTENSION_RENDERER_MODE_ON)). Vendored at
++  // modules/decoder-ffmpeg-mp2 (repo root) instead of node_modules, since this
++  // file only survives via patch-package (node_modules is not reproducible).
++  implementation project(':decoder-ffmpeg-mp2')
++
+   def fragment_version = "1.8.9"
+   implementation "androidx.fragment:fragment:$fragment_version"
+   implementation "androidx.fragment:fragment-ktx:$fragment_version"
+diff --git a/node_modules/expo-video/android/src/main/java/expo/modules/video/managers/AudioFocusManager.kt b/node_modules/expo-video/android/src/main/java/expo/modules/video/managers/AudioFocusManager.kt
+index cdce796..3307017 100644
+--- a/node_modules/expo-video/android/src/main/java/expo/modules/video/managers/AudioFocusManager.kt
++++ b/node_modules/expo-video/android/src/main/java/expo/modules/video/managers/AudioFocusManager.kt
+@@ -26,8 +26,11 @@ class AudioFocusManager(private val appContext: AppContext) : AudioManager.OnAud
+   private var currentFocusRequest: AudioFocusRequest? = null
+   private var currentMixingMode: AudioMixingMode = AudioMixingMode.MIX_WITH_OTHERS
+   private val anyPlayerRequiresFocus: Boolean
+-    get() = players.toList().any {
+-      playerRequiresFocus(it)
++    get() {
++      prunePlayers()
++      return players.toList().any {
++        playerRequiresFocus(it)
++      }
+     }
+ 
+   private fun requestAudioFocus() {
+@@ -87,6 +90,35 @@ class AudioFocusManager(private val appContext: AppContext) : AudioManager.OnAud
+       }
+     }
+     currentFocusRequest = null
++    // PATCHED (albasera, 2026-09-16): reset the mode with the request.
++    //
++    // `updateAudioFocus` branches on `findAudioMixingMode() != currentMixingMode`,
++    // and `requestAudioFocus`'s "we already have focus" early return skips the
++    // assignment that keeps those in step. Leaving the mode behind here let it
++    // go permanently stale, at which point that test is always true and
++    // `updateAudioFocus` degenerates into "always request" — its abandon
++    // branch becomes unreachable. Clearing both together gives the state
++    // machine a genuine fixed point.
++    currentMixingMode = AudioMixingMode.MIX_WITH_OTHERS
++  }
++
++  /**
++   * Drops entries whose player has been collected.
++   *
++   * PATCHED (albasera, 2026-09-16). `players` was pruned only in
++   * `unregisterPlayer`, which runs from `VideoPlayer.close()` — so a player
++   * finalised without an explicit close left its `WeakReference` in the list
++   * forever. Every focus event walks the whole list
++   * (`players.forEach { duckPlayer / unduckPlayer / pausePlayerIfUnmuted }`),
++   * so each dead entry multiplies the volume writes one event produces.
++   *
++   * This is the measured amplifier, not a tidiness argument: on the device,
++   * ~400 focus cycles per second were accompanied by ~2,270
++   * `AudioTrack.setVolume` calls per second — 5.7 writes per event, i.e.
++   * about six entries being walked where one player was playing.
++   */
++  private fun prunePlayers() {
++    players.removeAll { it.get() == null }
+   }
+ 
+   fun registerPlayer(player: VideoPlayer) {
+@@ -121,7 +153,41 @@ class AudioFocusManager(private val appContext: AppContext) : AudioManager.OnAud
+   }
+ 
+   override fun onVolumeChanged(player: VideoPlayer, volume: Float, oldVolume: Float?) {
+-    updateAudioFocus()
++    // PATCHED (albasera, 2026-09-16): only a change across silence can alter
++    // whether focus is needed, so only that re-evaluates it.
++    //
++    // This used to call updateAudioFocus() on EVERY volume change, which
++    // closed a feedback loop with this manager's own ducking:
++    //
++    //   duckPlayer() -> player.volume /= 2f      (this file, ~line 205)
++    //     -> VideoPlayer.volume setter fires     (VideoPlayer.kt:138-143)
++    //       -> onVolumeChanged -> updateAudioFocus()
++    //         -> focus transition -> duck again -> ...
++    //
++    // and VideoPlayer.kt:328-332 mirrors any external volume change back
++    // into the property, feeding the same loop from the other side. On a
++    // real device (Xiaomi/MIUI, Android) the result was measured as
++    // AudioTrack.setVolume being called 5,000-6,350 times per second,
++    // sustained for minutes, walking an 18-step ladder from 0dB to -11.2dB.
++    // Against 1 call in the 5 seconds before it started. It is plainly
++    // audible: continuous crackling on live streams that got worse with
++    // every channel change.
++    //
++    // Nothing is lost by narrowing it. `playerRequiresFocus` (this file)
++    // reads the volume only as `player.volume > 0`, so a change that does
++    // not cross zero cannot change the answer. Crossing zero still
++    // re-evaluates, which preserves the intent: a player silenced to 0
++    // releases focus so another app can have it.
++    // Only a change across silence can alter whether focus is needed:
++    // `playerRequiresFocus` reads the volume only as `player.volume > 0`, so
++    // a change that does not cross zero cannot change the answer. Narrowing
++    // this call is measured: it cut the device's `AudioTrack.setVolume` rate
++    // from ~6,350 per second to ~2,270.
++    val wasSilent = (oldVolume ?: volume) <= 0f
++    val isSilent = volume <= 0f
++    if (wasSilent != isSilent) {
++      updateAudioFocus()
++    }
+   }
+ 
+   override fun onMutedChanged(player: VideoPlayer, muted: Boolean, oldMuted: Boolean?) {
+@@ -134,10 +200,26 @@ class AudioFocusManager(private val appContext: AppContext) : AudioManager.OnAud
+     when (focusChange) {
+       AudioManager.AUDIOFOCUS_LOSS -> {
+         appContext.mainQueue.launch {
++          prunePlayers()
+           players.forEach {
+             pausePlayerIfUnmuted(it)
+           }
+-          currentFocusRequest = null
++          /*
++            PATCHED (albasera, 2026-09-16): release the request, do not just
++            forget it.
++
++            This was `currentFocusRequest = null`, which left our clientId in
++            the system's focus stack forever and disabled both of this class's
++            short-circuits — the "we already have focus" return, and
++            `abandonAudioFocus`'s own `currentFocusRequest?.let` guard. With
++            the field null, every later `requestAudioFocus()` builds a fresh
++            request and makes a real binder call, which sets the field, which
++            makes the next `abandonAudioFocus()` a real binder call too. The
++            pair is self-priming, and that is why `dumpsys audio` showed real
++            request/abandon IPC alternating every 2-3ms rather than silent
++            no-ops.
++          */
++          abandonAudioFocus()
+         }
+       }
+ 
+@@ -149,10 +231,18 @@ class AudioFocusManager(private val appContext: AppContext) : AudioManager.OnAud
+           return
+         }
+         appContext.mainQueue.launch {
++          prunePlayers()
+           players.forEach {
+             pausePlayerIfUnmuted(it)
+           }
+-          currentFocusRequest = null
++          /*
++            PATCHED (albasera, 2026-09-16): the request deliberately stays
++            registered through a *transient* loss — the system sends
++            `AUDIOFOCUS_GAIN` when the interrupter is done, and it can only do
++            that while we are still in its stack. Nulling the field here had
++            the opposite effect: it both orphaned the entry and blocked every
++            re-request behind the "we already have focus" check.
++          */
+         }
+       }
+ 
+@@ -199,10 +289,22 @@ class AudioFocusManager(private val appContext: AppContext) : AudioManager.OnAud
+     }
+   }
+ 
++  /**
++   * The quietest a duck may leave a player.
++   *
++   * PATCHED (albasera, 2026-09-16). `volume /= 2f` is unbounded: repeated
++   * ducks walk the gain to 0.5, 0.25, 0.125 and onwards until it underflows
++   * to zero. Zero is a silent player that never recovers on its own, and it
++   * was also the value that made the focus decision oscillate before that
++   * term was removed above. A floor keeps ducking doing what it is for —
++   * getting out of the way of a notification — without ever reaching silence.
++   */
++  private val minDuckVolume = 0.1f
++
+   private fun duckPlayer(weakPlayer: WeakReference<VideoPlayer>) {
+     weakPlayer.get()?.let { player ->
+       appContext.mainQueue.launch {
+-        player.volume /= 2f
++        player.volume = maxOf(player.volume / 2f, minDuckVolume)
+       }
+     }
+   }
+diff --git a/node_modules/expo-video/android/src/main/java/expo/modules/video/player/VideoPlayer.kt b/node_modules/expo-video/android/src/main/java/expo/modules/video/player/VideoPlayer.kt
+index 8bae522..2c289c1 100644
+--- a/node_modules/expo-video/android/src/main/java/expo/modules/video/player/VideoPlayer.kt
++++ b/node_modules/expo-video/android/src/main/java/expo/modules/video/player/VideoPlayer.kt
+@@ -63,6 +63,13 @@ class VideoPlayer(val context: Context, appContext: AppContext, source: VideoSou
+   private var renderersFactory = DefaultRenderersFactory(context)
+     .forceEnableMediaCodecAsynchronousQueueing()
+     .setEnableDecoderFallback(true)
++    // ON (not PREFER) keeps MediaCodec as the primary renderer for every format it
++    // supports — hardware video decode is unaffected. Extension renderers (here,
++    // FfmpegAudioRenderer from modules/decoder-ffmpeg-mp2, if/when its native lib is
++    // built and present) are only used as a fallback when the core renderer can't
++    // handle the format, e.g. MP2/MPEG Layer II audio. No-op when no extension
++    // renderer is registered/available.
++    .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+   private val listeners: MutableList<WeakReference<VideoPlayerListener>> = mutableListOf()
+   private val currentVideoViewRef = MutableWeakReference<VideoView?>(null) { new, old ->
+     sendEvent(PlayerEvent.TargetViewChanged(new, old))
+diff --git a/node_modules/expo-video/android/src/main/java/expo/modules/video/utils/DataSourceUtils.kt b/node_modules/expo-video/android/src/main/java/expo/modules/video/utils/DataSourceUtils.kt
+index 460fb7b..d4459a1 100644
+--- a/node_modules/expo-video/android/src/main/java/expo/modules/video/utils/DataSourceUtils.kt
++++ b/node_modules/expo-video/android/src/main/java/expo/modules/video/utils/DataSourceUtils.kt
+@@ -24,9 +24,30 @@ fun buildBaseDataSourceFactory(context: Context, videoSource: VideoSource): Data
+   }
+ }
+ 
++/**
++ * PATCHED (albasera, 2026-09-16): one client for the whole app, instead of a
++ * new one per source.
++ *
++ * `buildOkHttpDataSourceFactory` runs on every `replaceAsync`, i.e. on every
++ * channel change, and it used to build a fresh `OkHttpClient` each time. Each
++ * client owns its own connection pool and dispatcher executor, and none of
++ * them is ever shut down or evicted — so a zapping session accumulates pools
++ * holding idle keep-alive sockets (five minutes each by OkHttp's default) plus
++ * their threads. Measured on the device: ESTABLISHED sockets to the provider
++ * climbing from 7 to 29 while a single channel played, decaying only slowly.
++ * On a line that allows three connections and whose panel answers request
++ * bursts with a blanket 404, that is not a tidiness problem.
++ *
++ * Sharing is safe: the per-source values — request headers and User-Agent —
++ * are set on the `OkHttpDataSource.Factory` below, not on the client.
++ *
++ * `by lazy` so nothing is constructed in apps that never play an HTTP source.
++ */
++private val sharedOkHttpClient: OkHttpClient by lazy { OkHttpClient.Builder().build() }
++
+ @OptIn(UnstableApi::class)
+ fun buildOkHttpDataSourceFactory(context: Context, videoSource: VideoSource): OkHttpDataSource.Factory {
+-  val client = OkHttpClient.Builder().build()
++  val client = sharedOkHttpClient
+ 
+   // If the application name has ANY non-ASCII characters, we need to strip them out. This is because using non-ASCII characters
+   // in the User-Agent header can cause issues with getting the media to play.

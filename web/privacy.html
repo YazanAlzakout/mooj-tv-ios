@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy — Mooj TV</title>
+    <meta
+      name="description"
+      content="The privacy policy for the Mooj TV applications for Android and for iPhone and iPad (com.moojtv.player). Mooj TV collects no personal data."
+    />
+    <meta name="theme-color" content="#05080f" />
+    <link rel="icon" href="assets/favicon.png" />
+    <!--
+      This page has to stay exactly where it is.
+
+      Google Play requires the privacy policy URL to be live, publicly
+      reachable with no login and no country blocking, served over HTTPS,
+      and rendered as an ordinary non-editable web page — not a PDF, not a
+      shared document. App Store Connect asks for a privacy policy URL on
+      the same terms. The same URL is entered in the Play Console and in
+      App Store Connect and is linked from inside the app, so it must not
+      move or redirect.
+
+      Two stores, one page, and that is deliberate.
+
+      The published version of this page used to describe the Android app
+      alone: it opened by calling Mooj TV "the Mooj TV Android application",
+      named the Android Keystore, said updates come from Google Play, listed
+      Android runtime permissions, and told the reader to delete downloads
+      from the downloads screen. An App Review reviewer following the privacy
+      link from an App Store listing read all of it — irrelevant platform
+      references (guideline 2.3.10), and a flat contradiction of the App
+      Review notes, which say downloading is disabled in the iOS build and
+      nothing is saved to the device.
+
+      The fix is not a second page at a second URL. Two policies that
+      disagree is worse than one of them not existing, because whichever one
+      a reader found, the other could be held against it. So: one page,
+      shared prose for everything true of both apps, and every statement
+      that is true of only one of them sitting inside a block that carries
+      that platform's name. No sentence anywhere on this page applies to a
+      platform it is not labelled for.
+
+      No JavaScript. A tab switcher would hide one platform's text behind a
+      click, and the reviewer who does not click is the reader this page
+      exists for. Both platforms' text is always visible.
+
+      SOURCE OF TRUTH. The wording here is the app's own privacy screen,
+      which is the text Google reviewed and the text an iPhone shows. It
+      comes from src/core/i18n/translations/en.ts and ar.ts — the `privacy`
+      object (Android) and its `privacy.ios` sibling (the paragraphs that
+      are untrue on iOS) — rendered by src/app/privacy.tsx. Edit one and you
+      must edit the other, or this page starts drifting from the app again,
+      which is how the Android-only version survived as long as it did. See
+      web/README.md.
+
+      Two places where this page is deliberately AHEAD of the app, because
+      the app's wording did not match the build, and both are owed back into
+      en.ts and ar.ts:
+
+        - the Android permission list. The heading promises "why each one is
+          asked for" and the list had six entries, while the merged release
+          manifest holds nine: ACCESS_WIFI_STATE (expo-network), and
+          USE_BIOMETRIC with USE_FINGERPRINT (androidx.biometric, pulled in
+          by expo-secure-store and never exercised — there is no biometric
+          code in src/ at all). Those are named here, and the list now says
+          it is complete apart from the app's own signature-level
+          DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION.
+
+        - "Your provider details". The app's text says "those details" —
+          server address, username and password — are kept in secure storage
+          and "never written to the App's ordinary database". The username
+          and password are (src/core/storage/secureCredentials.ts); the
+          server address is `providers.base_url` in SQLite. The sentence is
+          scoped to the username and password here, and the server address
+          is stated plainly for what it is.
+
+      No external CSS, no external JS, no web fonts, no analytics, nothing
+      from a third party. The stylesheet is inlined below rather than loaded
+      from styles.css so that this one page cannot be broken by an edit to
+      the site's shared stylesheet, and so that it renders correctly saved
+      to a disk with the network off.
+    -->
+    <style>
+      /*
+       * Copied from styles.css on 2026-11-19, trimmed to the rules this page
+       * uses, plus the per-platform block and the Arabic column. The tokens,
+       * the glow, the top bar, the .doc measure and the footer are unchanged
+       * from the shared stylesheet, so this page still looks like index.html
+       * and terms.html sitting beside it.
+       */
+
+      :root {
+        --ink: #e8eef6;
+        --ink-soft: #9fb0c4;
+        --ink-faint: #67798f;
+        --bg: #05080f;
+        --bg-raised: #0b111c;
+        --line: rgba(255, 255, 255, 0.08);
+        --brand: #1989c6;
+        --brand-light: #3eb9eb;
+        --radius: 16px;
+        --measure: 68ch;
+        --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+          Arial, "Noto Sans", sans-serif;
+        /*
+         * Arabic faces that ship with the operating system. Nothing is
+         * downloaded — a web font here would be a third-party request on a
+         * privacy policy, which is the one page on the site that cannot
+         * afford one.
+         */
+        --font-ar: "Segoe UI", Tahoma, "Noto Naskh Arabic", "Noto Sans Arabic",
+          "Geeza Pro", "Al Bayan", "Droid Arabic Naskh", sans-serif;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        * {
+          animation-duration: 0.001ms !important;
+          transition-duration: 0.001ms !important;
+        }
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--font);
+        font-size: 17px;
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .wrap {
+        width: 100%;
+        max-width: 1080px;
+        margin-inline: auto;
+        padding-inline: 20px;
+      }
+
+      a {
+        color: var(--brand-light);
+      }
+
+      a:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--brand-light);
+        outline-offset: 3px;
+        border-radius: 6px;
+      }
+
+      /* ---------------------------------------------------------- the glow */
+
+      .glow {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background:
+          radial-gradient(
+            760px 560px at 50% -120px,
+            rgba(25, 137, 198, 0.16),
+            rgba(25, 137, 198, 0) 70%
+          ),
+          radial-gradient(
+            1500px 900px at 50% -340px,
+            rgba(25, 137, 198, 0.09),
+            rgba(25, 137, 198, 0) 72%
+          );
+      }
+
+      main,
+      header,
+      footer {
+        position: relative;
+        z-index: 1;
+      }
+
+      /* ------------------------------------------------------- the top bar */
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding-block: 20px;
+        flex-wrap: wrap;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: var(--ink);
+      }
+
+      .brand img {
+        width: 40px;
+        height: 40px;
+      }
+
+      .brand b {
+        font-size: 19px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
+
+      .topnav {
+        display: flex;
+        gap: 22px;
+        flex-wrap: wrap;
+      }
+
+      .topnav a {
+        color: var(--ink-soft);
+        text-decoration: none;
+        font-size: 15px;
+      }
+
+      .topnav a:hover {
+        color: var(--ink);
+      }
+
+      h2 {
+        margin: 0 0 10px;
+        font-size: clamp(24px, 3.4vw, 32px);
+        letter-spacing: -0.3px;
+        text-wrap: balance;
+      }
+
+      /* ------------------------------------------------------- legal pages */
+
+      .doc {
+        max-width: var(--measure);
+        padding-block: 36px 64px;
+      }
+
+      .doc h1 {
+        font-size: clamp(28px, 5vw, 40px);
+        margin: 0 0 6px;
+        letter-spacing: -0.4px;
+      }
+
+      .doc .updated {
+        color: var(--ink-faint);
+        font-size: 14px;
+        margin: 0 0 30px;
+      }
+
+      .doc .intro {
+        color: var(--ink-soft);
+        border-left: 3px solid var(--brand);
+        padding-left: 16px;
+        margin-bottom: 34px;
+      }
+
+      .doc h2 {
+        font-size: 20px;
+        margin-top: 38px;
+        margin-bottom: 8px;
+        letter-spacing: 0;
+      }
+
+      .doc p {
+        color: var(--ink-soft);
+        margin: 0 0 12px;
+      }
+
+      .doc p strong {
+        color: var(--ink);
+      }
+
+      /* --------------------------------------------- the per-platform block */
+
+      /*
+       * The two cards are styled identically on purpose. Tinting one of them
+       * would make it read as the real policy and the other as a footnote,
+       * and the whole point of this page is that neither is a footnote. Only
+       * the label differs.
+       */
+      .platform {
+        border: 1px solid var(--line);
+        background: var(--bg-raised);
+        border-radius: var(--radius);
+        padding: 18px 20px 8px;
+        margin: 0 0 14px;
+      }
+
+      .platform-label {
+        display: inline-block;
+        margin: 0 0 12px;
+        padding: 3px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(62, 185, 235, 0.35);
+        background: rgba(25, 137, 198, 0.14);
+        color: var(--ink);
+        font-size: 12.5px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
+
+      .platform h3 {
+        margin: 0 0 10px;
+        font-size: 16.5px;
+        color: var(--ink);
+        letter-spacing: 0;
+      }
+
+      /* The reading note under the intro: how to read the labelled blocks. */
+      .howto {
+        border: 1px solid rgba(62, 185, 235, 0.22);
+        background: rgba(25, 137, 198, 0.07);
+        border-radius: var(--radius);
+        padding: 22px 24px 10px;
+        margin-bottom: 8px;
+      }
+
+      /* ------------------------------------------------- the Arabic column */
+
+      /* ------------------------------------------------------------ footer */
+
+      footer {
+        border-top: 1px solid var(--line);
+        padding-block: 34px 48px;
+        color: var(--ink-faint);
+        font-size: 14px;
+      }
+
+      .footer-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 24px 48px;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+
+      .footer-links {
+        display: flex;
+        gap: 22px;
+        flex-wrap: wrap;
+      }
+
+      .footer-links a {
+        color: var(--ink-soft);
+        text-decoration: none;
+      }
+
+      .footer-links a:hover {
+        color: var(--ink);
+      }
+
+      .footer-note {
+        margin-top: 22px;
+        max-width: var(--measure);
+        line-height: 1.6;
+      }
+
+      .footer-note + .footer-note {
+        margin-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="glow" aria-hidden="true"></div>
+
+    <header class="wrap topbar">
+      <a class="brand" href="index.html">
+        <img src="assets/logo.png" alt="" width="40" height="40" />
+        <b>Mooj TV</b>
+      </a>
+      <nav class="topnav" aria-label="Main">
+        <a href="index.html">Home</a>
+        <a href="terms.html">Terms</a>
+        <a href="mailto:support@mooj-player.com">Contact</a>
+      </nav>
+    </header>
+
+    <main class="wrap doc">
+      <h1 id="en">Privacy Policy</h1>
+      <p class="updated">Last updated: 19 November 2026</p>
+
+      <p class="intro">
+        This policy describes how Mooj TV (the “App”) handles your information. It
+        applies to the Mooj TV Android application published under the package name
+        <strong>com.moojtv.player</strong>, to the Mooj TV application for iPhone and
+        iPad published under the bundle identifier
+        <strong>com.moojtv.player</strong>, and to this website.
+      </p>
+
+      <div class="howto">
+        <p>
+          <strong>How to read this page.</strong> The two versions of the App are not
+          identical, and this policy does not pretend they are.
+        </p>
+        <p>
+          Everything written as ordinary text below is true of both of them. Wherever
+          they differ, the difference is set out in labelled blocks — one marked
+          <strong>Android</strong>, one marked <strong>iPhone &amp; iPad</strong>. No
+          statement on this page applies to a platform it is not labelled for, so you
+          never have to work out which half you are reading.
+        </p>
+      </div>
+
+      <h2>The short version</h2>
+      <p>
+        Mooj TV does not collect, transmit, or store any personal data about you.
+        There are no accounts, no sign-up, no analytics, no advertising, and no
+        tracking of any kind.
+      </p>
+
+      <div class="platform">
+        <span class="platform-label">Android</span>
+        <p>
+          Everything the App keeps — your provider details, your favourites, your
+          history, your downloads — stays on your device and is never sent to us.
+        </p>
+      </div>
+
+      <div class="platform">
+        <span class="platform-label">iPhone &amp; iPad</span>
+        <p>
+          Everything the App keeps — your provider details, your favourites, your
+          history — stays on your device and is never sent to us.
+        </p>
+      </div>
+
+      <h2>What we collect</h2>
+      <p>
+        Nothing. The developers of Mooj TV operate no servers that receive data from
+        the App, and have no way to identify you or your device.
+      </p>
+      <p>
+        The App contains no analytics SDK, no advertising SDK, no crash-reporting
+        service, and no third-party advertising or tracking identifiers.
+      </p>
+
+      <h2>Your provider details</h2>
+      <p>
+        To watch anything, you enter the details of a service you already subscribe
+        to — a server address, a username and a password, or a direct stream link.
+      </p>
+
+      <div class="platform">
+        <span class="platform-label">Android</span>
+        <p>
+          Your username and password are stored only on your device, in the Android
+          Keystore-backed secure storage the operating system provides for secrets.
+          They are never written to the App’s ordinary database, never written to a
+          log, and never transmitted to the developers or to any third party.
+        </p>
+      </div>
+
+      <div class="platform">
+        <span class="platform-label">iPhone &amp; iPad</span>
+        <p>
+          Your username and password are stored on your device, in the iOS keychain,
+          the secure storage the operating system provides for secrets. They are never
+          written to the App’s ordinary database, never written to a log, and never
+          transmitted to the developers or to any third party.
+        </p>
+        <p>
+          One thing follows from that which you should know, because it is a choice
+          rather than an accident. The App stores them so that they can be included in
+          your own encrypted Apple backup and restored when you set up a new device,
+          rather than being locked to one phone — so that moving to a new phone does
+          not mean entering your provider details again. That backup is yours and
+          Apple’s, encrypted, and the developers have no access to it. If you would
+          rather your provider details never leave the one device, remove the provider
+          from the App before backing up.
+        </p>
+      </div>
+
+      <p>
+        The server address you entered is kept with that provider’s entry in the App’s
+        ordinary local database on your device, because the App needs it for every
+        request it makes. It is sent to no one but the provider itself.
+      </p>
+      <p>
+        Your details are sent to one destination only: the provider you entered them
+        for, in order to sign in and play what you asked for. That provider is your own
+        supplier and its handling of your data is governed by its own terms, not by
+        this policy.
+      </p>
+
+      <h2>What stays on your device</h2>
+
+      <div class="platform">
+        <span class="platform-label">Android</span>
+        <p>
+          The App keeps the following locally so that it can work: the list of
+          providers you have added, which categories you have hidden, your favourites
+          and watch-later list, your watch history and playback positions, your
+          downloaded files, your parental PIN if you set one, and your settings such
+          as language and theme.
+        </p>
+      </div>
+
+      <div class="platform">
+        <span class="platform-label">iPhone &amp; iPad</span>
+        <p>
+          The App keeps the following locally so that it can work: the list of
+          providers you have added, which categories you have hidden, your favourites
+          and watch-later list, your watch history and playback positions, your
+          parental PIN if you set one, and your settings such as language and theme.
+        </p>
+        <p>
+          Downloading for offline viewing is not available in the iOS version of the
+          App, so no media file is saved to your device.
+        </p>
+      </div>
+
+      <p>
+        All of it lives in the App’s private storage on your device. None of it is
+        backed up to us, synchronised, or shared.
+      </p>
+
+      <h2>Network connections</h2>
+      <p>
+        The App makes network requests to exactly one kind of destination: the
+        provider whose details you entered. It fetches your channel, film and series
+        lists from that provider, the artwork those lists point to, and the streams
+        you choose to play.
+      </p>
+      <p>
+        The App does not contact any server operated by the developers, because none
+        exists.
+      </p>
+
+      <div class="platform">
+        <span class="platform-label">Android</span>
+        <p>
+          Checking for a newer version of the App is handled by Google Play on your
+          device, not by the App itself.
+        </p>
+      </div>
+
+      <div class="platform">
+        <span class="platform-label">iPhone &amp; iPad</span>
+        <p>
+          Checking for a newer version of the App is handled by the App Store on your
+          device, not by the App itself.
+        </p>
+      </div>
+
+      <h2>Permissions</h2>
+
+      <div class="platform">
+        <span class="platform-label">Android</span>
+        <h3>Permissions, and why each one is asked for</h3>
+        <p><strong>Internet, network state and Wi-Fi state</strong> — to reach your provider and to tell you when the device is offline.</p>
+        <p><strong>Foreground service and media playback</strong> — to keep playback running while the screen is off or another app is in front, if you turn that on in Settings.</p>
+        <p><strong>Wake lock</strong> — to stop the device sleeping in the middle of what you are watching.</p>
+        <p><strong>Modify audio settings</strong> — to manage volume and audio focus during playback.</p>
+        <p><strong>Vibrate</strong> — for the short tap feedback in the interface.</p>
+        <p><strong>Storage, on Android 12 and older only</strong> — to save downloads you ask for.</p>
+        <p>
+          <strong>Biometric and fingerprint</strong> — declared by the component that
+          puts your provider password into the operating system’s secure storage. The
+          App never asks for your fingerprint or your face, and contains nothing that
+          could ask.
+        </p>
+        <p>
+          Those are all the permissions the installed App holds, besides one that
+          Android requires an app to define for its own internal messages and that
+          gives access to nothing.
+        </p>
+        <p>
+          The App does not request access to your camera, your microphone, your
+          location, your contacts, your calendar, your photos, or your call or message
+          history, and cannot read them.
+        </p>
+      </div>
+
+      <div class="platform">
+        <span class="platform-label">iPhone &amp; iPad</span>
+        <h3>Permissions, and why the App asks for none</h3>
+        <p>
+          On iOS the App asks you for no permissions. It needs network access to reach
+          your provider, and iOS grants that without a prompt.
+        </p>
+        <p>
+          The App does not request access to your camera, your microphone, your
+          location, your contacts, your calendar, your photos, or your call or message
+          history, and cannot read them. It declares no usage description for any of
+          them, which is what iOS requires before an app may even ask.
+        </p>
+        <p>
+          It does not use Face ID or Touch ID, and it never shows the App Tracking
+          Transparency prompt, because it does not track you and has nothing to ask
+          permission for.
+        </p>
+      </div>
+
+      <h2>Children</h2>
+      <p>
+        Mooj TV is not directed at children and is not designed for them. It collects
+        no data from anyone, including children.
+      </p>
+      <p>
+        A parental PIN is available in Settings so that the person who owns the
+        device can restrict which categories are visible.
+      </p>
+
+      <h2>Keeping and deleting your information</h2>
+      <p>
+        Because nothing reaches us, there is nothing for us to keep or to delete on
+        your behalf.
+      </p>
+
+      <div class="platform">
+        <span class="platform-label">Android</span>
+        <p>
+          Everything the App has stored is under your control on the device. You can
+          remove a provider and its saved credentials from the providers screen, clear
+          your watch history and cached artwork from Settings, delete downloads from
+          the downloads screen, and remove all of it at once by uninstalling the App or
+          clearing its data in the Android settings.
+        </p>
+        <p>
+          Uninstalling the App deletes its entire local store, including the saved
+          provider credentials.
+        </p>
+      </div>
+
+      <div class="platform">
+        <span class="platform-label">iPhone &amp; iPad</span>
+        <p>
+          Everything the App has stored is under your control on the device. You can
+          remove a provider and its saved credentials from the providers screen, clear
+          your watch history and cached artwork from Settings, and remove all of it at
+          once by deleting the App from your device.
+        </p>
+        <p>
+          Deleting the App removes its entire local store, including the saved provider
+          credentials.
+        </p>
+      </div>
+
+      <h2>Security</h2>
+
+      <div class="platform">
+        <span class="platform-label">Android</span>
+        <p>
+          Provider passwords are held in the operating system’s secure storage, which
+          is backed by the Android Keystore and encrypted by the device.
+        </p>
+      </div>
+
+      <div class="platform">
+        <span class="platform-label">iPhone &amp; iPad</span>
+        <p>
+          Provider passwords are held in the operating system’s secure storage — the
+          iOS keychain — which is encrypted by the device and readable only after the
+          device has been unlocked once since it was started.
+        </p>
+      </div>
+
+      <p>
+        The server address of a provider is masked wherever it is displayed in the
+        App, so the full address cannot be read off an unlocked screen.
+      </p>
+      <p>
+        Many IPTV providers are reachable only over plain HTTP, which the App
+        therefore allows. Traffic to such a provider is not encrypted in transit, and
+        that is a property of the provider you chose rather than of the App. If your
+        provider offers an HTTPS address, prefer it.
+      </p>
+
+      <h2>This website</h2>
+      <p>
+        mooj-player.com serves static pages only. It sets no cookies, runs no
+        analytics, embeds nothing from a third party, and has no forms. Your visit is
+        not logged by us beyond whatever ordinary access logs the hosting provider
+        keeps for operating the server.
+      </p>
+
+      <h2>Your rights</h2>
+      <p>
+        If you are in the European Economic Area, the United Kingdom, or a
+        jurisdiction with comparable law, you have rights of access, correction,
+        deletion, restriction, objection and portability over personal data held
+        about you. We hold none, so there is nothing to act on — but you are welcome
+        to write to the address below and ask, and we will tell you the same thing in
+        writing.
+      </p>
+      <p>
+        If you are a California resident, this policy is the notice required of us
+        about the categories of information collected and how it is used and shared.
+        Mooj TV collects no categories of personal information and shares none, and
+        it does not sell personal information.
+      </p>
+
+      <h2>Changes to this policy</h2>
+      <p>
+        If this policy changes, the revised version will be published at this address
+        and the date at the top of this page will be updated.
+      </p>
+
+      <h2 id="contact">Contact</h2>
+      <p>For questions about this policy or about privacy in Mooj TV, contact:</p>
+      <p><strong>Email:</strong> <a href="mailto:support@mooj-player.com">support@mooj-player.com</a></p>
+      <p><strong>Web:</strong> <a href="https://mooj-player.com/privacy.html">https://mooj-player.com/privacy.html</a></p>
+
+    </main>
+
+    <footer class="wrap">
+      <div class="footer-grid">
+        <div>© 2026 Mooj TV. All rights reserved.</div>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="index.html">Home</a>
+          <a href="terms.html">Terms &amp; Conditions</a>
+          <a href="terms.html#dmca">Copyright / DMCA</a>
+          <a href="mailto:support@mooj-player.com">Support</a>
+        </nav>
+      </div>
+      <p class="footer-note">
+        Google Play and the Google Play logo are trademarks of Google LLC. Android is
+        a trademark of Google LLC. Mooj TV is an independent application and is not
+        affiliated with, endorsed by or sponsored by Google.
+      </p>
+      <p class="footer-note">
+        Apple, App Store, iPhone, iPad, Face ID and Touch ID are trademarks of Apple
+        Inc., registered in the U.S. and other countries. Mooj TV is an independent
+        application and is not affiliated with, endorsed by or sponsored by Apple.
+      </p>
+    </footer>
+  </body>
+</html>

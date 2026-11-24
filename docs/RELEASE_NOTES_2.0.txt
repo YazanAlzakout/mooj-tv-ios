@@ -1,0 +1,26 @@
+<ar>
+تحديث كبير — إعادة بناء التطبيق بالكامل.
+
+• وضع فاتح جديد، مع إمكانية اتّباع إعداد النظام
+• تصفّح الأفلام والمسلسلات صار أسرع بكثير
+• مشغّل قنوات جديد مع قائمة قنوات تحت الفيديو
+• تحميل صور الأفلام والمسلسلات مسبقاً للتصفّح بدون انتظار
+• اختيار اللغة من أول شاشة
+• إصلاح مشاكل في التشغيل وفي الاتصال بالمزوّد
+• تحسينات كثيرة في الاستقرار والسرعة
+
+مزوّدوك المحفوظون سينتقلون تلقائياً.
+</ar>
+<en-US>
+A major update — the app has been rebuilt from the ground up.
+
+• New light theme, with the option to follow your system setting
+• Much faster browsing in Movies and Series
+• A new live TV player with the channel list below the video
+• Artwork is downloaded ahead of time, so browsing does not wait
+• Language can be chosen from the first screen
+• Playback and provider connection fixes
+• Many stability and speed improvements
+
+Your saved providers carry over automatically.
+</en-US>

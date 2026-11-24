@@ -1,0 +1,103 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+example
+
+# generated native folders
+/ios
+/android
+
+# native module build output — gradle regenerates all of it, and it was
+# 31 MB of the 75 MB this repository would otherwise have carried,
+# including four copies of the same libffmpegJNI.so.
+modules/*/android/build/
+
+# A release keystore must never land in here, nor anything holding its
+# password.
+#
+# Nothing under android/ can reach this repository anyway — /android is
+# excluded above, and a negation cannot re-include a file whose parent
+# directory is excluded, so the debug keystore in there is untracked with
+# or without these lines. These patterns are for anywhere else in the
+# tree: a keystore copied to the project root to run a build, a
+# properties file written beside it.
+#
+# Signing itself reads MOOJ_UPLOAD_STORE_FILE and friends as gradle
+# project properties supplied from outside the project (see the release
+# signingConfig), which is why android/gradle.properties holds no
+# credentials at all.
+*.keystore
+keystore.properties
+signing.properties
+
+# CMake/ninja scratch for the native module — same story as build/ above.
+modules/*/android/.cxx/
+
+# JVM crash dumps. Gradle drops these in the project root when the
+# daemon dies, which on this machine means it ran out of memory. They are
+# diagnostics for one run on one machine, never source.
+hs_err_pid*.log
+replay_pid*.log
+
+# AF_UNIX socket files for the Gradle daemon's NIO selector; see
+# tools/build-release.cmd for why this directory has to be a short path.
+/.gradle-tmp
+
+# The brand kit duplicates assets/fonts/ byte for byte so the folder can be
+# handed over whole; the repository only needs one copy of the nine files.
+/store/raw/fonts/
+
+# The Play handover bundle and its zip are assembled from files already in
+# this repository — the signed AAB, the icon, the screenshots. Keeping a second
+# copy of 110MB of binaries in git buys nothing; rebuild it from store/ and
+# android/app/build/outputs when it is needed again.
+/handover-play/
+/MoojTV-*.zip
+
+# The iOS handover pack is the same idea with one difference worth stating: it
+# carries no binary at all, because nobody here can produce one. There is no
+# Mac, the libVLC pod has never compiled, and a submittable iOS build can only
+# be made on the Apple account that will publish it. So the pack is documents,
+# the 1024 icon and the credentials file — generated from store/ and assets/ or
+# written in docs/. Rebuild it rather than commit it.
+/handover-ios/
+
+# A JVM crash replay dump, committed by accident on 2026-11-07 during the
+# Gradle loopback failure. 2.5MB of hotspot internals, no value to anyone.
+replay_pid*.log
+hs_err_pid*.log

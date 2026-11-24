@@ -1,0 +1,26 @@
+<ar>
+نسخة 2.0 للتلفزيون — إصدار اختباري.
+
+• دعم جهاز التحكّم عن بُعد: الأسهم للتنقّل، وزرّا التشغيل والإيقاف
+• تقليب القنوات بالسهمين لأعلى وأسفل أثناء المشاهدة
+• إطار مرئي يوضّح العنصر المحدَّد على الشاشة
+• واجهة جديدة بالكامل مع وضع فاتح
+• تصفّح أسرع بكثير للأفلام والمسلسلات
+• مشغّل قنوات جديد
+• التنزيل غير متاح على التلفزيون
+
+هذه أول نسخة تلفزيون من الإصدار الجديد. إذا واجهت أي مشكلة في التنقّل بجهاز التحكّم، يُرجى إبلاغنا.
+</ar>
+<en-US>
+Version 2.0 for TV — test release.
+
+• Remote control support: D-pad navigation, play and pause keys
+• Channel zapping with up and down while watching
+• A visible outline showing which control is selected
+• A completely new interface with a light theme
+• Much faster browsing in Movies and Series
+• A new live TV player
+• Downloads are not available on TV
+
+This is the first TV build of the new version. If anything does not respond to the remote, please let us know.
+</en-US>

@@ -1,0 +1,64 @@
+// Adapted from androidx/media's libraries/decoder_ffmpeg module (tag 1.8.0,
+// https://github.com/androidx/media/tree/1.8.0/libraries/decoder_ffmpeg),
+// Apache License 2.0. The original build.gradle references sibling modules
+// via the androidx/media monorepo's `project(...)` helper; here we depend on
+// the equivalent published Maven artifacts instead, since this module is
+// vendored standalone into this app rather than built inside that monorepo.
+//
+// This module provides FfmpegAudioRenderer/FfmpegAudioDecoder only (the video
+// renderer from upstream is intentionally not included — we only need an MP2
+// *audio* decoder; video stays on Media3's hardware MediaCodec path).
+//
+// The native (C++/FFmpeg) side is NOT built until an actual FFmpeg source
+// checkout has been placed at src/main/jni/ffmpeg (see UPSTREAM_README.md and
+// scripts/build-ffmpeg-mp2-decoder.sh at the repo root) — until then this
+// module compiles as a Java-only library with no native code, and does
+// nothing (FfmpegLibrary.isAvailable() reports false, so
+// DefaultRenderersFactory's extension-renderer mode silently skips it).
+apply plugin: 'com.android.library'
+
+// Matches expo-video's own androidxMedia3Version (57.0.3 uses 1.9.0) so
+// Gradle doesn't have to reconcile two different Media3 versions.
+def androidxMedia3Version = "1.9.0"
+
+android {
+    namespace 'androidx.media3.decoder.ffmpeg'
+    compileSdkVersion 35
+
+    defaultConfig {
+        minSdkVersion 24
+        targetSdkVersion 35
+
+        // The vendored FFmpeg static libs (jni/ffmpeg/android-libs/) were only
+        // built for the two ABIs real Android phones/TV boxes actually use -
+        // armeabi-v7a and arm64-v8a. x86/x86_64 (emulator-only) have no built
+        // libs, so CMake fails there with a hard "missing and no known rule to
+        // make it" error unless this module's own native build is scoped down
+        // to match, even though the app as a whole still targets all 4 ABIs.
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a"
+        }
+    }
+
+    if (project.file('src/main/jni/ffmpeg').exists()) {
+        externalNativeBuild.cmake.path = 'src/main/jni/CMakeLists.txt'
+        externalNativeBuild.cmake.version = '3.21.0+'
+    }
+
+    buildFeatures {
+        buildConfig = false
+    }
+}
+
+dependencies {
+    api "androidx.media3:media3-decoder:${androidxMedia3Version}"
+    implementation "androidx.media3:media3-exoplayer:${androidxMedia3Version}"
+    implementation "androidx.media3:media3-common:${androidxMedia3Version}"
+    // No explicit version: React Native's Gradle plugin enforces "consistent
+    // resolution" across the whole project for AndroidX libraries, strictly
+    // pinning androidx.annotation:annotation to whatever version the rest of
+    // the app resolved (1.6.0 here) - a hardcoded 1.7.1 here conflicted with
+    // that project-wide constraint and failed dependency resolution outright.
+    compileOnly "androidx.annotation:annotation"
+    compileOnly "org.checkerframework:checker-qual:3.42.0"
+}
