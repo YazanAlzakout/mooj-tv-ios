@@ -27,7 +27,7 @@ const FALLBACK = {
   key: "mooj",
   displayName: "Mooj TV",
   wordmark: "Mooj Tv",
-  databaseName: "mooj.db",
+  databaseName: "mooj-ios.db",
 } as const;
 
 interface BrandExtra {

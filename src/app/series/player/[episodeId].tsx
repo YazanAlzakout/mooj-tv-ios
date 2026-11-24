@@ -1,14 +1,12 @@
 import { useEventListener } from "expo";
 import { useKeepAwake } from "expo-keep-awake";
 import { router, useLocalSearchParams } from "expo-router";
-import { useVideoPlayer, VideoView } from "expo-video";
+import { VideoView } from "expo-video";
 import { useEffect, useRef, useState } from "react";
-import { AppState, Image, Pressable, StyleSheet, Text, View, type AppStateStatus } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { brandLogoOnDark } from "@/components/BrandLogo";
-import { toPlaybackError } from "@/core/errors/PlaybackError";
-import { vodReasonKey } from "@/core/errors/playbackReason";
 import { useI18n } from "@/core/i18n/I18nContext";
 import { PROVIDER_REQUEST_HEADERS } from "@/core/network/providerHeaders";
 import { useIsOffline } from "@/core/network/useIsOffline";
@@ -17,7 +15,7 @@ import { getAppState } from "@/db/repositories/appStateRepository";
 import type { SeriesEpisode } from "@/domain/series/types";
 import { episodeStreamUrl, getSeriesDetails } from "@/providers/xtream/seriesAdapter";
 import { TrackSelectorModal } from "@/playback/TrackSelectorModal";
-import { useBackgroundPlayback } from "@/playback/useBackgroundPlayback";
+import { useVodSession } from "@/playback/useVodSession";
 import { useFullscreenOrientation } from "@/playback/useFullscreenOrientation";
 import { usePlaybackSpeed } from "@/playback/usePlaybackSpeed";
 import { usePlaybackTracks } from "@/playback/usePlaybackTracks";
@@ -25,11 +23,6 @@ import { useWatchProgress } from "@/playback/useWatchProgress";
 import { VodPlayerControls } from "@/playback/VodPlayerControls";
 import { getActiveSession } from "@/state/activeSessionStore";
 
-/**
- * How close two failures must be, in seconds of playback position, to
- * count as the same failure repeating rather than a new one.
- */
-const ERROR_LOOP_WINDOW_S = 5;
 
 /** Master prompt §24.7: start offering the next episode once this close to the end. */
 const NEXT_EPISODE_TRIGGER_SECONDS = 20;
@@ -118,62 +111,7 @@ export default function EpisodePlayerScreen() {
       : null;
   const noInternetMessage = !localUri && isOffline ? t("common", "noInternet") : null;
 
-  const player = useVideoPlayer(source, (p) => {
-    p.play();
-  });
-
-  const backgroundPlaybackEnabled = useBackgroundPlayback(player);
-
-  /**
-   * Frees the provider's single connection while the app is in the
-   * background — the same thing the live player does, and for the reason
-   * `useBackgroundPlayback` documents: `staysActiveInBackground: false`
-   * only *pauses*, and a paused progressive stream keeps its socket, so
-   * the account stayed locked for as long as the viewer was in another app.
-   * This screen called the hook and threw away its answer, which meant the
-   * preference was read and then ignored here.
-   *
-   * The position is not tracked by hand: `useWatchProgress` seeks a
-   * freshly-sourced player back to where it was, which is the same path a
-   * mid-playback reload already takes.
-   */
-  const sourceRef = useRef(source);
-  useEffect(() => {
-    sourceRef.current = source;
-  });
-
-  useEffect(() => {
-    if (backgroundPlaybackEnabled !== false) return;
-    const subscription = AppState.addEventListener("change", (next: AppStateStatus) => {
-      if (next === "background") {
-        /*
-          `useWatchProgress` registers its own `change` listener after this
-          one, and listeners fire in registration order — so by the time it
-          reads `player.currentTime` to save the position, this has already
-          cleared the source and it reads 0. Below the resume threshold that
-          means no write at all, and the last stretch of watching was lost
-          if the process was killed while backgrounded.
-
-          Dropping the source is deferred by one tick so the save runs
-          against a player that still has one. The connection is released a
-          few milliseconds later than before, which is not a cost anyone can
-          observe.
-        */
-        setTimeout(() => {
-          void player.replaceAsync(null);
-        }, 0);
-      } else if (next === "active" && sourceRef.current) {
-        void player.replaceAsync(sourceRef.current).then(
-          () => player.play(),
-          () => {
-            // A failure here surfaces through the player's own status
-            // listener, the same as any other source that will not open.
-          }
-        );
-      }
-    });
-    return () => subscription.remove();
-  }, [backgroundPlaybackEnabled, player]);
+  const { player, status, errorReasonKey, close } = useVodSession(source);
 
   useWatchProgress(player, {
     contentType: "episode",
@@ -185,62 +123,6 @@ export default function EpisodePlayerScreen() {
     seriesId: seriesId ?? null,
     seasonNumber: seasonNumber ? Number(seasonNumber) : null,
     episodeNumber: episodeNumber ? Number(episodeNumber) : null,
-  });
-
-  const [status, setStatus] = useState<"idle" | "loading" | "readyToPlay" | "error">("idle");
-  /** A reason key, not the provider's words — see core/errors/playbackReason.ts. */
-  const [errorReasonKey, setErrorReasonKey] = useState<string | null>(null);
-
-  /** VOD retry policy (master prompt §25): one quiet transient retry, then a real error card. */
-  const hasRetriedRef = useRef(false);
-  /** Where the last failure happened, so the same one is not retried for ever. */
-  const lastErrorAtRef = useRef(Number.NEGATIVE_INFINITY);
-  const unmountedRef = useRef(false);
-
-  useEffect(() => {
-    return () => {
-      unmountedRef.current = true;
-    };
-  }, []);
-
-  useEventListener(player, "statusChange", ({ status: newStatus, error }) => {
-    setStatus(newStatus);
-    if (newStatus === "error" && error) {
-      /*
-        One retry per *place* in the file, not one per playback.
-
-        `hasRetriedRef` was cleared on every `readyToPlay`, and
-        `useWatchProgress` seeks a reloaded source back to where it left
-        off — so a stream that fails at a fixed point (a bad segment, a
-        cut-off file) went error → reload → seek → same error, for ever.
-        The viewer saw a picture that restarted itself every few seconds
-        and never got the message telling them why, and each cycle opened
-        the stream again.
-
-        Remembering where the last error happened breaks the loop without
-        giving up the retry: a failure somewhere else in the film still
-        gets its one attempt.
-      */
-      const erroredAt = player.currentTime;
-      const loopingAtSamePoint = Math.abs(erroredAt - lastErrorAtRef.current) < ERROR_LOOP_WINDOW_S;
-      if (!hasRetriedRef.current && source && !loopingAtSamePoint) {
-        lastErrorAtRef.current = erroredAt;
-        hasRetriedRef.current = true;
-        player.replaceAsync(source).then(
-          () => {
-            if (!unmountedRef.current) player.play();
-          },
-          (retryError) => {
-            if (!unmountedRef.current) setErrorReasonKey(vodReasonKey(toPlaybackError(retryError).category));
-          }
-        );
-        return;
-      }
-      setErrorReasonKey(vodReasonKey(toPlaybackError(error).category));
-    }
-    if (newStatus === "readyToPlay") {
-      hasRetriedRef.current = false;
-    }
   });
 
   const playbackSpeed = usePlaybackSpeed(player);
@@ -327,20 +209,10 @@ export default function EpisodePlayerScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function playEpisode(episode: SeriesEpisode) {
-    /*
-     * Free the connection before navigating, not after.
-     *
-     * `router.replace` mounts the next screen, and `useVideoPlayer`
-     * constructs its native player during render — Android schedules
-     * `prepare()` immediately, so the request for episode N+1 goes out
-     * while this screen is still unmounting and its own player has not
-     * been released yet. On a line that allows one connection, the new
-     * request can simply be refused. Dropping the source here closes the
-     * socket first, so the hand-off uses one connection instead of two.
-     */
-    player.pause();
-    void player.replaceAsync(null);
+  async function playEpisode(episode: SeriesEpisode) {
+    // 2026-11-25: await release before mounting the next episode's player.
+    // A stale handoff (double tap or unmount) returns false and cannot navigate.
+    if (!(await close())) return;
 
     router.replace({
       pathname: "/series/player/[episodeId]",

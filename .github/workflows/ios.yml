@@ -1,0 +1,58 @@
+name: iPhone validation
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      simulator:
+        description: Compile an unsigned iPhone simulator app
+        type: boolean
+        default: true
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:ios
+      - run: npm run test:playback
+      - run: npm run typecheck
+      - run: npx eslint src/playback/SourceQueue.ts src/playback/useVodSession.ts src/playback/useWatchProgress.ts src/playback/usePlaybackSeek.ts 'src/app/movies/player/[movieId].tsx' 'src/app/series/player/[episodeId].tsx'
+      - run: npx expo export --platform ios
+  simulator:
+    if: github.event_name == 'workflow_dispatch' && inputs.simulator
+    needs: validate
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx expo prebuild --platform ios --clean
+      - name: Compile simulator app
+        run: |
+          set -euo pipefail
+          WORKSPACE=$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO > xcodebuild.log 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-build-log
+          path: xcodebuild.log
+      - name: Package simulator app
+        run: ditto -c -k --sequesterRsrc --keepParent build/Build/Products/Release-iphonesimulator/*.app MoojTV-simulator.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MoojTV-simulator
+          path: MoojTV-simulator.zip

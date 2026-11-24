@@ -1,23 +1,18 @@
 {
-  "name": "mooj-tv",
+  "name": "mooj-tv-ios",
   "main": "expo-router/entry",
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "postinstall": "patch-package",
     "start": "expo start",
-    "start:tv": "cross-env EXPO_TV=1 expo start",
-    "android": "expo run:android",
-    "android:tv": "cross-env EXPO_TV=1 expo run:android",
     "web": "expo start --web",
-    "prebuild": "expo prebuild --clean",
-    "prebuild:tv": "cross-env EXPO_TV=1 expo prebuild --clean",
-    "prebuild:dev": "cross-env MOOJ_DEV_ID=1 expo prebuild --clean",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "doctor": "npx expo-doctor",
-    "build:dev:android": "eas build --platform android --profile development",
-    "build:dev:tv": "eas build --platform android --profile development-tv"
+    "ios": "expo run:ios",
+    "prebuild:ios": "expo prebuild --platform ios --clean",
+    "test:playback": "node --experimental-strip-types --test tests/*.test.mjs",
+    "verify:ios": "node tools/verify-ios.js"
   },
   "dependencies": {
     "@lunarr/vlc-player": "^2.1.1",

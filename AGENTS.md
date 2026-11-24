@@ -1,3 +1,17 @@
+# Independent iPhone project
+
+This repository is `mooj-tv-ios`; the original `mooj-tv` is read-only reference.
+The instructions below are historical upstream guidance. For this repo:
+- Build iOS only, with `app.config.js` and `brand.config.js` as the source of identity.
+- Run `npm run verify:ios`, `npm run typecheck`, `npm run test:playback`, targeted ESLint and iOS export before pushing changes.
+- Never reuse the upstream EAS id or Apple app identity. Do not publish automatically.
+- Keep interfaces/assets and provider/library behavior compatible. Document any parity gap.
+- No credentials in source, logs or screenshots. Retain MIT attribution.
+- The movie/episode source writer is `useVodSession` via `SourceQueue`. Do not add independent timers that replace a source.
+- Native compilation needs macOS; playback acceptance needs a real iPhone. Do not describe either as passed without evidence.
+
+---
+
 # Mooj TV — what this project already knows
 
 This app was cloned from a sibling player that had been through two years of

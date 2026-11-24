@@ -1,0 +1,15 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const c = require('../app.config').expo;
+const b = require('../brand.config');
+assert.deepEqual(c.platforms, ['ios']);
+assert.equal(c.ios.bundleIdentifier, 'com.moojtv.ios');
+assert.notEqual(c.scheme, 'moojtv');
+assert.equal(c.slug, 'mooj-tv-ios');
+assert.equal(c.extra.isTvBuild, false);
+assert.equal(c.extra.brand.databaseName, b.databaseName);
+assert.ok(fs.readFileSync('src/core/brand/index.ts', 'utf8').includes(`databaseName: "${b.databaseName}"`));
+assert.notEqual(c.extra.eas?.projectId, 'c5e2edeb-6be9-49c8-b7e2-dd8265f2c7ac');
+assert.equal(c.android, undefined);
+for (const p of c.plugins) assert.ok(!String(Array.isArray(p) ? p[0] : p).startsWith('./plugins/'));
+console.log('Independent iPhone identity and build configuration verified.');

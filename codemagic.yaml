@@ -1,156 +1,47 @@
-# Codemagic: iOS build for Mooj TV, signed for the App Store and sent to TestFlight.
-#
-# Why this file exists (2026-11-24): there is no Mac on this project, so
-# `pod install` and Xcode cannot run locally, and the build has to happen on
-# someone else's Mac. EAS was the first choice (see eas.json, `ios-store`);
-# Codemagic is the route actually used, because the Apple account's App Store
-# Connect keys are already registered there for the sibling apps.
-#
-# The repository has no `ios/` directory and never has: the native project is
-# generated on every build by `expo prebuild`, exactly as on Android. So
-# nothing below can assume a workspace name. It is looked up after prebuild.
-#
-# Starting a build: Codemagic -> this app -> Start new build -> workflow
-# "mooj-tv-ios". There is deliberately no `triggering:` block. A from-source
-# React Native build is slow (the react-native-tvos fork publishes no prebuilt
-# core), minutes are billed, and a push to a branch should not spend them.
-
+# Manual signed build. Add the new com.moojtv.ios app in Apple Developer and
+# App Store Connect, then configure the integration and environment group below.
 workflows:
   mooj-tv-ios:
-    name: Mooj TV iOS (TestFlight)
-    # 2026-11-18: the first simulator build on EAS took about six minutes on a
-    # medium worker. A signed archive adds code signing and the IPA export, and
-    # a cold cache adds the whole pod compile, so leave generous headroom
-    # rather than have Codemagic kill a build that was ten minutes from done.
+    name: Mooj TV independent iPhone app
     max_build_duration: 90
     instance_type: mac_mini_m2
-
     integrations:
-      # The name of an App Store Connect key under Codemagic -> Team
-      # integrations -> Developer Portal. Since 2026-11-24 this is a key made
-      # for this app alone (App Manager), so it can be revoked without touching
-      # the other apps on the same Apple account. Change this string to
-      # whatever the key is called in the integration list.
-      app_store_connect: "mooj_tv"
-
+      app_store_connect: mooj_tv_ios
     environment:
-      # Same Node line as the Android release machine. Expo 57 with React
-      # Native 0.86 does not support an older LTS.
-      node: 22
+      node: 24
       xcode: latest
       cocoapods: default
+      groups: [mooj_tv_ios]
       ios_signing:
         distribution_type: app_store
-        # Must equal ios.bundleIdentifier in app.config.js, which reads it from
-        # brand.config.js. If the two differ, signing succeeds and the upload
-        # is refused, which reads like an App Store Connect fault.
-        bundle_identifier: com.moojtv.player
+        bundle_identifier: com.moojtv.ios
       vars:
-        # The app's Apple ID in App Store Connect. It is public (it is in the
-        # app's URL), so it is not a secret. Used only to ask TestFlight what
-        # the last build number was.
-        APP_STORE_APPLE_ID: 6838252392
-        # Keeps Expo's CLI from stopping to ask a question nobody is there to
-        # answer.
         CI: "1"
-        # NOTE: EXPO_TV is not set anywhere in this file, on purpose. With it
-        # set, prebuild produces the Apple TV project instead of the iPhone
-        # one, and the two are separate prebuilds with the react-native-tvos
-        # fork. This workflow builds the iPhone app.
-
     scripts:
-      - name: Install npm dependencies
-        # `npm ci`, not `npm install`: it fails when package.json and the
-        # lockfile disagree instead of quietly picking new versions, and
-        # `postinstall` runs patch-package, which applies the expo-video patch.
-        # .npmrc already carries legacy-peer-deps, which the
-        # react-native -> react-native-tvos alias needs.
+      - name: Validate
         script: |
+          set -e
           npm ci
-
-      - name: Check the brand
-        # tools/verify-brand.js is meant to run before any release build. Its
-        # last section reads the merged Android manifest, which does not exist
-        # on a runner that only builds iOS, so that single check is expected to
-        # fail here and is the only failure tolerated. Anything else failing
-        # (a drifted fallback, another brand's name, the wrong identifier)
-        # stops the build before minutes are spent on it. The grep matches only
-        # the per-check "  FAIL  <reason>" lines: on 2026-11-24 a bare `grep FAIL`
-        # also matched the "1 FAILED" summary line, so the one tolerated failure
-        # still stopped the build.
+          npm run verify:ios
+          npm run test:playback
+          npm run typecheck
+      - name: Allocate build number and generate project
         script: |
-          node tools/verify-brand.js | tee /tmp/verify-brand.txt || true
-          if grep -E '^ +FAIL ' /tmp/verify-brand.txt | grep -v "merged manifest was readable"; then
-            echo "verify-brand found a real problem"
-            exit 1
-          fi
-
-      - name: Generate the native iOS project
-        # `--clean` so that nothing left over from an earlier build on a reused
-        # machine can survive. Prebuild also runs `pod install`; there is no
-        # separate pod step because there is no Podfile before this one.
-        script: |
+          set -eu
+          : "${APP_STORE_APPLE_ID:?Set the NEW app Apple ID in the mooj_tv_ios environment group}"
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID")
+          case "$LATEST" in ''|*[!0-9]*) echo 'Could not determine latest TestFlight build'; exit 1;; esac
+          export IOS_BUILD_NUMBER=$((LATEST + 1))
           npx expo prebuild --platform ios --clean
-
-      - name: Find the Xcode workspace
-        # The workspace takes its name from the app's display name, sanitised
-        # by Expo, so it is read from disk rather than written down. The scheme
-        # has the same name.
+          WORKSPACE=$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)
+          echo "XCODE_WORKSPACE=$WORKSPACE" >> "$CM_ENV"
+          echo "XCODE_SCHEME=$(basename "$WORKSPACE" .xcworkspace)" >> "$CM_ENV"
+      - name: Sign and build IPA
         script: |
-          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
-          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
-          echo "XCODE_WORKSPACE=$WORKSPACE" >> $CM_ENV
-          echo "XCODE_SCHEME=$SCHEME" >> $CM_ENV
-          echo "workspace: $WORKSPACE, scheme: $SCHEME"
-
-      - name: Set the build number
-        # app.config.js sets buildNumber to the Android versionCode so that one
-        # release carries one number on both stores. That is right for the
-        # first upload and wrong for the second: App Store Connect refuses a
-        # build number it has already seen for this version, and Git cannot say
-        # what was uploaded, only what was built. So ask TestFlight, and go one
-        # above whatever it says. With nothing uploaded yet it answers nothing,
-        # and the number from the config stands.
-        script: |
-          LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0)
-          LATEST=${LATEST:-0}
-          CONFIGURED=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" ios/*/Info.plist)
-          if [ "$LATEST" -ge "$CONFIGURED" ] 2>/dev/null; then
-            NEXT=$((LATEST + 1))
-            /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEXT" ios/*/Info.plist
-            echo "build number: $NEXT (TestFlight had $LATEST)"
-          else
-            echo "build number: $CONFIGURED (TestFlight had $LATEST)"
-          fi
-
-      - name: Set up code signing
-        # Reads the profile and certificate that Codemagic fetched through the
-        # App Store Connect key and points the generated project at them.
-        script: |
+          set -e
           xcode-project use-profiles
-
-      - name: Build the IPA
-        script: |
-          xcode-project build-ipa \
-            --workspace "$XCODE_WORKSPACE" \
-            --scheme "$XCODE_SCHEME"
-
+          xcode-project build-ipa --workspace "$XCODE_WORKSPACE" --scheme "$XCODE_SCHEME"
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-
-    publishing:
-      email:
-        recipients:
-          - alitoson1234567@gmail.com
-        notify:
-          success: true
-          failure: true
-      app_store_connect:
-        auth: integration
-        # Uploads the build, which then appears in TestFlight for internal
-        # testers. It is not submitted for beta review or for App Review:
-        # that is taken by hand in App Store Connect, once the build has been
-        # played on a real iPhone.
-        submit_to_testflight: false
-        submit_to_app_store: false
+# No publishing step: inspect the IPA and approve TestFlight distribution first.

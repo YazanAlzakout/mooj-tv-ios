@@ -21,7 +21,9 @@ export interface UsePlaybackSeekResult {
  */
 export function usePlaybackSeek(player: VideoPlayer): UsePlaybackSeekResult {
   function seekTo(seconds: number) {
-    const max = player.duration > 0 ? player.duration : Number.POSITIVE_INFINITY;
+    if (!Number.isFinite(seconds)) return;
+    const duration = player.duration;
+    const max = Number.isFinite(duration) && duration > 0 ? duration : Number.POSITIVE_INFINITY;
     player.currentTime = Math.min(Math.max(seconds, 0), max);
   }
 

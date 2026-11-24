@@ -63,35 +63,45 @@ export function useWatchProgress(player: VideoPlayer, meta: WatchProgressMeta): 
 
   const resumedRef = useRef(false);
   const pendingResumeRef = useRef<number | null>(null);
+  const metadataReadyRef = useRef(false);
   const lastPersistAtRef = useRef(0);
-  /**
-   * Where playback had actually reached, kept so a *reloaded* source can be
-   * put back there.
-   *
-   * `resumedRef` is one-shot per item, which is right for "restore the
-   * saved position once". But a source can be reloaded without the item
-   * changing — the quiet retry after a playback error, or the player being
-   * rebuilt when connectivity flips — and ExoPlayer starts a replaced
-   * source at zero. With only the one-shot flag, forty minutes into a film
-   * a two-second Wi-Fi blip silently restarted it from the beginning.
-   */
-  const lastKnownPositionRef = useRef(0);
 
+  function resumeWhenReady() {
+    if (resumedRef.current || !metadataReadyRef.current || player.status !== "readyToPlay") return;
+    resumedRef.current = true;
+    const position = pendingResumeRef.current;
+    if (position !== null && Number.isFinite(position) && position > 0) {
+      const duration = player.duration;
+      // eslint-disable-next-line react-hooks/immutability -- native player setter.
+      player.currentTime = Number.isFinite(duration) && duration > 0 ? Math.min(position, duration) : position;
+    }
+  }
+
+  // eslint-disable-next-line react-hooks/immutability -- resume writes a native SharedObject property, not React data.
   useEffect(() => {
+    let cancelled = false;
     resumedRef.current = false;
+    metadataReadyRef.current = false;
     pendingResumeRef.current = null;
-    lastKnownPositionRef.current = 0;
+    lastPersistAtRef.current = 0;
+    // 2026-11-25: disk lookup and native ready events can finish in either
+    // order. Try from both, and reject a late lookup for a previous episode.
     Promise.all([getWatchProgress(meta.contentType, meta.providerItemId), getAppState()]).then(
       ([existing, appState]) => {
-        if (!existing || !appState.resumeEnabled) return;
-        const fraction = existing.durationSeconds > 0 ? existing.positionSeconds / existing.durationSeconds : 0;
-        if (fraction >= RESUME_MIN_FRACTION && fraction < RESUME_MAX_FRACTION) {
+        if (cancelled) return;
+        const fraction = existing && existing.durationSeconds > 0 ? existing.positionSeconds / existing.durationSeconds : 0;
+        if (existing && appState.resumeEnabled && fraction >= RESUME_MIN_FRACTION && fraction < RESUME_MAX_FRACTION) {
           pendingResumeRef.current = existing.positionSeconds;
         }
-      }
+        metadataReadyRef.current = true;
+        resumeWhenReady();
+      },
+      () => { if (!cancelled) metadataReadyRef.current = true; }
     );
-    // Re-run only when switching to a genuinely different item.
-  }, [meta.contentType, meta.providerItemId]);
+    return () => { cancelled = true; };
+    // Stable player for the screen; only a different item starts a new lookup.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meta.contentType, meta.providerItemId, player]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/immutability -- native player property setter, see doc comment above.
@@ -140,33 +150,11 @@ export function useWatchProgress(player: VideoPlayer, meta: WatchProgressMeta): 
     }).catch(() => {});
   }
 
-  /* eslint-disable react-hooks/immutability -- native player property setter, see doc comment above. */
   useEventListener(player, "statusChange", ({ status }) => {
-    if (status !== "readyToPlay") return;
-
-    if (!resumedRef.current) {
-      resumedRef.current = true;
-      if (pendingResumeRef.current !== null) {
-        player.currentTime = pendingResumeRef.current;
-      }
-      return;
-    }
-
-    /*
-     * Ready again for an item already resumed: the source was reloaded.
-     * If the player is sitting at the start while playback had got further
-     * than that, put it back. The one-second thresholds keep this from
-     * firing on an ordinary ready event mid-playback, and from fighting a
-     * viewer who deliberately seeks to the beginning.
-     */
-    if (lastKnownPositionRef.current > 1 && player.currentTime < 1) {
-      player.currentTime = lastKnownPositionRef.current;
-    }
+    if (status === "readyToPlay") resumeWhenReady();
   });
-  /* eslint-enable react-hooks/immutability */
 
   useEventListener(player, "timeUpdate", () => {
-    if (player.currentTime > 0) lastKnownPositionRef.current = player.currentTime;
     // The event now fires twice a second for the scrubber's benefit; the
     // database still only wants a row every PROGRESS_SAVE_INTERVAL_SECONDS.
     // Pause/background/unmount persist unconditionally below — those are
