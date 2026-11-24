@@ -13,6 +13,8 @@ import { NavigationBar } from "expo-navigation-bar";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { BackChevron } from "@/components/BackButton";
+import { useI18n } from "@/core/i18n/I18nContext";
 import { Focusable } from "@/components/Focusable";
 import { isTvBuild } from "@/core/platform/isTvBuild";
 import { Brand, Colors, FontFamily, Radii, Spacing } from "@/core/theme/tokens";
@@ -92,6 +94,7 @@ export function VodPlayerControls({
    * included. See the note in live/player/[channelId].tsx.
    */
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   /**
    * System-bar clearance plus a margin from the edge of the glass.
    *
@@ -414,8 +417,8 @@ export function VodPlayerControls({
       <NavigationBar hidden />
 
       <View style={[styles.topBar, layerPadding(Spacing.md)]} pointerEvents="box-none">
-        <Focusable onPress={onBack} style={styles.iconButton} hitSlop={10}>
-          <Text style={styles.iconButtonText}>‹</Text>
+        <Focusable onPress={onBack} style={styles.iconButton} hitSlop={8} accessibilityLabel={t("common", "back")}>
+          <BackChevron color={Colors.text} />
         </Focusable>
         <Text
           style={[styles.title, !controlsVisible && styles.hidden]}
@@ -461,6 +464,7 @@ export function VodPlayerControls({
             {/* Where the remote lands when the controls appear. */}
             {/* TV only — see the note in live/player/[channelId].tsx. */}
             <Focusable
+              accessibilityLabel={t("livePlayer", isPlaying ? "pause" : "play")}
               onPress={togglePlayPause}
               style={styles.playButton}
               hitSlop={10}
@@ -509,8 +513,11 @@ export function VodPlayerControls({
               onResponderGrant={onTrackGrant}
               onResponderMove={onTrackMove}
               onResponderRelease={onTrackRelease}
-              /* If the gesture is torn down anyway, honour the scrub rather than dropping it. */
-              onResponderTerminate={onTrackRelease}
+              /* A cancelled touch must not commit an unintended seek. */
+              onResponderTerminate={() => {
+                setDragging(false);
+                showControlsTemporarily();
+              }}
             >
               {/*
                 pointerEvents="none" on all three: they are absolutely
@@ -550,8 +557,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   iconButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: Radii.pill,
     backgroundColor: "rgba(0,0,0,0.5)",
     alignItems: "center",

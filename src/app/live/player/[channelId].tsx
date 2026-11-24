@@ -21,6 +21,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { brandLogoOnDark } from "@/components/BrandLogo";
+import { BackChevron } from "@/components/BackButton";
 import { Focusable } from "@/components/Focusable";
 
 import { playbackReasonKey } from "@/core/errors/playbackReason";
@@ -2080,95 +2081,70 @@ export default function LivePlayerScreen() {
           </View>
         )}
 
+        {/* Keep a visible exit on iPhone even after the transport auto-hides. */}
+        <View style={[styles.topBar, layerPadding(Spacing.md)]} pointerEvents="box-none">
+          <Focusable onPress={() => router.back()} style={styles.iconButton} hitSlop={8} accessibilityLabel={t("common", "back")}>
+            <BackChevron color={Colors.text} />
+          </Focusable>
+          {controlsVisible && <>
+          <Text style={styles.channelName} numberOfLines={1}>
+            {currentChannel?.name ?? ""}
+          </Text>
+          {/*
+            Channel-number entry, on the TV build only.
+
+            A remote has a number pad as real buttons, so typing 4500
+            is the fastest route to channel 4500 and there is no other
+            one. A phone has a searchable list a thumb reaches in the
+            same gesture, which is why this row is down to a single
+            button there (requested 2026-09-16, along with the removal
+            of the split-view toggle — reported as not working — and of
+            the screen lock).
+          */}
+          {isTvBuild && (
+            <Focusable
+              onPress={() => setNumberEntry((current) => (current === null ? "" : null))}
+              style={styles.iconButton}
+              hitSlop={12}
+            >
+              <Text style={styles.iconButtonText}>#</Text>
+            </Focusable>
+          )}
+          {/*
+            Where the remote lands when the overlay appears, now that
+            the transport row it used to land on is gone from the TV
+            build.
+
+            It has to land *somewhere*: the full-screen tap surface
+            stops being focusable while the overlay is up
+            (`focusable={!controlsVisible}`), so Android hands focus to
+            the first focusable in the tree — which is the back arrow at
+            the start of this bar. That made OK mean "leave the player"
+            for as long as the overlay was up. Here it means "open the
+            channel list", the same thing OK means everywhere else, so
+            a viewer who presses it out of habit gets the one action
+            they already expect.
+
+            Phone excluded for the reason the old site documented:
+            `hasTVPreferredFocus` is not a description of state,
+            react-native-tvos calls `requestFocus()` wherever it is
+            set — on a touch screen it drew a focus ring for a viewer
+            with no cursor (reported 2026-09-15).
+          */}
+          <Focusable
+            onPress={() => setGuideVisible(true)}
+            accessibilityLabel={t("liveGuide", "guideButtonLabel")}
+            style={[styles.iconButton, guideVisible && styles.iconButtonActive]}
+            hitSlop={12}
+            hasTVPreferredFocus={isTvBuild}
+          >
+            <Text style={styles.iconButtonText}>☰</Text>
+          </Focusable>
+          </>}
+        </View>
+
         {controlsVisible && (
           <>
-{/*
-              No scrim. The viewer asked for no black gradients anywhere in
-              the picture, explicitly including while the controls are up
-              (2026-09-16: "لا داعي للتتدرحات اللونية السوداء ابدا / حتى عند
-              الضغط على الشاشة"). Readability is carried by each control
-              having its own translucent pill instead of a wash over the
-              video. Do not put one back.
-            */}
-
-            {/*
-              The top bar hides with everything else after the auto-hide
-              timeout: while a channel is playing the picture should be
-              exactly that — picture, with no permanent dimmed strip or row
-              of buttons over it.
-
-              This row used to stay up permanently, on the reasoning that a
-              tap on expo-video's Android surface is not guaranteed to reach
-              this Pressable (its VideoView re-dispatches touch events
-              manually), so the viewer might be stranded with no visible way
-              back. Android's own back gesture always leaves the screen
-              regardless, so that escape hatch never actually depended on
-              this bar — and a permanently dimmed band over the video is a
-              real, constant cost paid against a hypothetical one.
-            */}
-            {/*
-              `box-none` — the bar is a full-width absolute strip, so
-              without it a tap on the channel name or on the empty space
-              between the buttons hit this View and did nothing, instead of
-              reaching the video surface and toggling the controls.
-            */}
-            <View style={[styles.topBar, layerPadding(Spacing.md)]} pointerEvents="box-none">
-              <Focusable onPress={() => router.back()} style={styles.iconButton} hitSlop={12}>
-                <Text style={styles.iconButtonText}>‹</Text>
-              </Focusable>
-              <Text style={styles.channelName} numberOfLines={1}>
-                {currentChannel?.name ?? ""}
-              </Text>
-              {/*
-                Channel-number entry, on the TV build only.
-
-                A remote has a number pad as real buttons, so typing 4500
-                is the fastest route to channel 4500 and there is no other
-                one. A phone has a searchable list a thumb reaches in the
-                same gesture, which is why this row is down to a single
-                button there (requested 2026-09-16, along with the removal
-                of the split-view toggle — reported as not working — and of
-                the screen lock).
-              */}
-              {isTvBuild && (
-                <Focusable
-                  onPress={() => setNumberEntry((current) => (current === null ? "" : null))}
-                  style={styles.iconButton}
-                  hitSlop={12}
-                >
-                  <Text style={styles.iconButtonText}>#</Text>
-                </Focusable>
-              )}
-              {/*
-                Where the remote lands when the overlay appears, now that
-                the transport row it used to land on is gone from the TV
-                build.
-
-                It has to land *somewhere*: the full-screen tap surface
-                stops being focusable while the overlay is up
-                (`focusable={!controlsVisible}`), so Android hands focus to
-                the first focusable in the tree — which is the back arrow at
-                the start of this bar. That made OK mean "leave the player"
-                for as long as the overlay was up. Here it means "open the
-                channel list", the same thing OK means everywhere else, so
-                a viewer who presses it out of habit gets the one action
-                they already expect.
-
-                Phone excluded for the reason the old site documented:
-                `hasTVPreferredFocus` is not a description of state,
-                react-native-tvos calls `requestFocus()` wherever it is
-                set — on a touch screen it drew a focus ring for a viewer
-                with no cursor (reported 2026-09-15).
-              */}
-              <Focusable
-                onPress={() => setGuideVisible(true)}
-                style={[styles.iconButton, guideVisible && styles.iconButtonActive]}
-                hitSlop={12}
-                hasTVPreferredFocus={isTvBuild}
-              >
-                <Text style={styles.iconButtonText}>☰</Text>
-              </Focusable>
-            </View>
 
             {/*
               Previous, play/pause and next — **the phone only**.
@@ -2186,7 +2162,7 @@ export default function LivePlayerScreen() {
             */}
             {!isTvBuild && (
               <View style={[styles.centerControls, layerPadding(0)]} pointerEvents="box-none">
-                  <Focusable style={styles.zapButton} onPress={() => selectByOffset(-1)} hitSlop={8}>
+                  <Focusable style={styles.zapButton} accessibilityLabel={t("livePlayer", "previousChannel")} onPress={() => selectByOffset(-1)} hitSlop={8}>
                     <Text style={styles.zapGlyph}>|◀</Text>
                   </Focusable>
                   {/*
@@ -2197,10 +2173,10 @@ export default function LivePlayerScreen() {
                     list button in the top bar, which is the one control
                     whose meaning matches what OK does everywhere else.
                   */}
-                  <Focusable style={styles.playButton} onPress={togglePlay} hitSlop={8}>
+                  <Focusable style={styles.playButton} accessibilityLabel={t("livePlayer", isPlaying ? "pause" : "play")} onPress={togglePlay} hitSlop={8}>
                     <Text style={styles.playGlyph}>{isPlaying ? "❙❙" : "▶"}</Text>
                   </Focusable>
-                  <Focusable style={styles.zapButton} onPress={() => selectByOffset(1)} hitSlop={8}>
+                  <Focusable style={styles.zapButton} accessibilityLabel={t("livePlayer", "nextChannel")} onPress={() => selectByOffset(1)} hitSlop={8}>
                     <Text style={styles.zapGlyph}>▶|</Text>
                   </Focusable>
               </View>
@@ -2513,8 +2489,8 @@ const styles = StyleSheet.create({
     // All padding comes from `layerPadding` — see CONTROL_EDGE.
   },
   iconButton: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
     borderRadius: Radii.pill,
     backgroundColor: "rgba(0,0,0,0.5)",
     alignItems: "center",
